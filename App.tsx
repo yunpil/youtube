@@ -15,13 +15,27 @@ const App: React.FC = () => {
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const [result, setResult] = useState<GeneratedResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string>('');
+
+  // Load API key from localStorage on mount
+  React.useEffect(() => {
+    const savedApiKey = localStorage.getItem('gemini_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    }
+  }, []);
 
   const handleGenerateSuggestions = async () => {
+    if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+      setErrorMsg('API 키를 먼저 입력해주세요. 우측 상단의 "API 키 입력" 버튼을 클릭하세요.');
+      return;
+    }
+
     try {
       setAppState(AppState.PROCESSING);
       setErrorMsg(null);
       
-      const topics = await generateTopicSuggestions(originalScript);
+      const topics = await generateTopicSuggestions(originalScript, apiKey);
       
       setSuggestedTopics(topics);
       setAppState(AppState.TOPIC_SUGGESTIONS);
@@ -38,12 +52,17 @@ const App: React.FC = () => {
   };
 
   const handleSubmit = async (topic?: string) => {
+    if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+      setErrorMsg('API 키를 먼저 입력해주세요. 우측 상단의 "API 키 입력" 버튼을 클릭하세요.');
+      return;
+    }
+
     try {
       setAppState(AppState.PROCESSING);
       setErrorMsg(null);
       
       const finalTopic = topic || targetTopic;
-      const data = await transformScript(originalScript, finalTopic);
+      const data = await transformScript(originalScript, finalTopic, apiKey);
       
       setResult(data);
       setAppState(AppState.RESULTS);
@@ -68,7 +87,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white font-sans selection:bg-blue-500/30">
-      <Header />
+      <Header apiKey={apiKey} setApiKey={setApiKey} />
       
       <main className="max-w-4xl mx-auto px-4 py-8 md:py-12">
         {/* Error Alert */}

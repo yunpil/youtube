@@ -2,10 +2,9 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ViralAnalysis, GeneratedResult } from "../types";
 
 // Helper to ensure API key exists
-const getClient = () => {
-  const apiKey = import.meta.env.VITE_API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key가 없습니다. .env.local 파일에 VITE_API_KEY를 설정해주세요.");
+const getClient = (apiKey: string) => {
+  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+    throw new Error("API 키가 없습니다. 우측 상단에서 API 키를 입력해주세요.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -52,9 +51,10 @@ const topicSuggestionsSchema: Schema = {
 };
 
 export const generateTopicSuggestions = async (
-  originalScript: string
+  originalScript: string,
+  apiKey: string
 ): Promise<string[]> => {
-  const ai = getClient();
+  const ai = getClient(apiKey);
   const modelId = "gemini-2.0-flash-exp";
 
   const response = await ai.models.generateContent({
@@ -89,9 +89,10 @@ export const generateTopicSuggestions = async (
 
 export const transformScript = async (
   originalScript: string,
-  newTopic: string
+  newTopic: string,
+  apiKey: string
 ): Promise<GeneratedResult> => {
-  const ai = getClient();
+  const ai = getClient(apiKey);
   const modelId = "gemini-2.0-flash-exp"; // Using Flash for speed and efficiency
 
   // Step 1: Analyze the original script
