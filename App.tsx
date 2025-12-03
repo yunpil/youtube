@@ -3,7 +3,8 @@ import Header from './components/Header';
 import InputForm from './components/InputForm';
 import LoadingView from './components/LoadingView';
 import ResultsView from './components/ResultsView';
-import { transformScript } from './services/geminiService';
+import TopicSuggestions from './components/TopicSuggestions';
+import { transformScript, generateTopicSuggestions } from './services/geminiService';
 import { AppState, GeneratedResult } from './types';
 import { AlertCircle } from 'lucide-react';
 
@@ -11,22 +12,45 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.INPUT);
   const [originalScript, setOriginalScript] = useState('');
   const [targetTopic, setTargetTopic] = useState('');
+  const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const [result, setResult] = useState<GeneratedResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const handleGenerateSuggestions = async () => {
     try {
       setAppState(AppState.PROCESSING);
       setErrorMsg(null);
       
-      const data = await transformScript(originalScript, targetTopic);
+      const topics = await generateTopicSuggestions(originalScript);
+      
+      setSuggestedTopics(topics);
+      setAppState(AppState.TOPIC_SUGGESTIONS);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "주제 추천을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      setAppState(AppState.INPUT);
+    }
+  };
+
+  const handleSelectTopic = async (topic: string) => {
+    setTargetTopic(topic);
+    await handleSubmit(topic);
+  };
+
+  const handleSubmit = async (topic?: string) => {
+    try {
+      setAppState(AppState.PROCESSING);
+      setErrorMsg(null);
+      
+      const finalTopic = topic || targetTopic;
+      const data = await transformScript(originalScript, finalTopic);
       
       setResult(data);
       setAppState(AppState.RESULTS);
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-      setAppState(AppState.INPUT); // Return to input on error
+      setAppState(AppState.INPUT);
     }
   };
 
@@ -34,7 +58,12 @@ const App: React.FC = () => {
     setAppState(AppState.INPUT);
     setResult(null);
     setTargetTopic('');
-    // We optionally keep the original script in case they want to reuse the structure for another topic
+    setSuggestedTopics([]);
+  };
+
+  const handleBackToInput = () => {
+    setAppState(AppState.INPUT);
+    setSuggestedTopics([]);
   };
 
   return (
@@ -70,9 +99,18 @@ const App: React.FC = () => {
               targetTopic={targetTopic}
               setTargetTopic={setTargetTopic}
               onSubmit={handleSubmit}
+              onGenerateSuggestions={handleGenerateSuggestions}
               isProcessing={false}
             />
           </>
+        )}
+
+        {appState === AppState.TOPIC_SUGGESTIONS && (
+          <TopicSuggestions
+            topics={suggestedTopics}
+            onSelectTopic={handleSelectTopic}
+            onBack={handleBackToInput}
+          />
         )}
 
         {appState === AppState.PROCESSING && (

@@ -13,6 +13,7 @@ export interface GeneratedResult {
 
 export enum AppState {
   INPUT = 'INPUT',
+  TOPIC_SUGGESTIONS = 'TOPIC_SUGGESTIONS',
   PROCESSING = 'PROCESSING',
   RESULTS = 'RESULTS',
   ERROR = 'ERROR'

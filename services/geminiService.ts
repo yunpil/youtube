@@ -3,9 +3,9 @@ import { ViralAnalysis, GeneratedResult } from "../types";
 
 // Helper to ensure API key exists
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_API_KEY;
   if (!apiKey) {
-    throw new Error("API Key is missing.");
+    throw new Error("API Key가 없습니다. .env.local 파일에 VITE_API_KEY를 설정해주세요.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -39,12 +39,60 @@ const analysisSchema: Schema = {
   required: ["hookStrategy", "pacing", "tone", "structureBreakdown", "keyKeywords"],
 };
 
+const topicSuggestionsSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    topics: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "5 recommended video topics based on the script structure",
+    },
+  },
+  required: ["topics"],
+};
+
+export const generateTopicSuggestions = async (
+  originalScript: string
+): Promise<string[]> => {
+  const ai = getClient();
+  const modelId = "gemini-2.0-flash-exp";
+
+  const response = await ai.models.generateContent({
+    model: modelId,
+    contents: `
+      다음 유튜브 영상 대본의 구조와 스타일을 분석하여, 
+      이 구조를 활용하기 좋은 5가지 다른 주제를 추천해주세요.
+      
+      대본:
+      ${originalScript.substring(0, 5000)}
+      
+      요구사항:
+      1. 각 주제는 구체적이고 흥미로워야 합니다
+      2. 실제로 영상을 만들 수 있는 현실적인 주제여야 합니다
+      3. 다양한 카테고리의 주제를 제안해주세요
+      4. 각 주제는 20자 이내로 작성해주세요
+    `,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: topicSuggestionsSchema,
+    },
+  });
+
+  const resultText = response.text;
+  if (!resultText) {
+    throw new Error("주제 추천을 생성하지 못했습니다.");
+  }
+
+  const result = JSON.parse(resultText);
+  return result.topics || [];
+};
+
 export const transformScript = async (
   originalScript: string,
   newTopic: string
 ): Promise<GeneratedResult> => {
   const ai = getClient();
-  const modelId = "gemini-2.5-flash"; // Using Flash for speed and efficiency
+  const modelId = "gemini-2.0-flash-exp"; // Using Flash for speed and efficiency
 
   // Step 1: Analyze the original script
   // We use a specific model call for analysis to get structured JSON

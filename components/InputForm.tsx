@@ -7,6 +7,7 @@ interface InputFormProps {
   targetTopic: string;
   setTargetTopic: (val: string) => void;
   onSubmit: () => void;
+  onGenerateSuggestions: () => void;
   isProcessing: boolean;
 }
 
@@ -16,9 +17,11 @@ const InputForm: React.FC<InputFormProps> = ({
   targetTopic,
   setTargetTopic,
   onSubmit,
+  onGenerateSuggestions,
   isProcessing
 }) => {
-  const isReady = originalScript.length > 50 && targetTopic.length > 2;
+  const isScriptReady = originalScript.length > 50;
+  const isFullyReady = isScriptReady && targetTopic.length > 2;
 
   return (
     <div className="grid gap-8 animate-fade-in">
@@ -69,12 +72,13 @@ const InputForm: React.FC<InputFormProps> = ({
           </div>
 
           {/* Submit Button */}
-          <div className="pt-4">
+          <div className="pt-4 space-y-3">
+            {/* AI 주제 추천 버튼 */}
             <button
-              onClick={onSubmit}
-              disabled={!isReady || isProcessing}
+              onClick={onGenerateSuggestions}
+              disabled={!isScriptReady || isProcessing}
               className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
-                isReady
+                isScriptReady && !isProcessing
                   ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/25 cursor-pointer'
                   : 'bg-gray-800 text-gray-500 cursor-not-allowed'
               }`}
@@ -82,18 +86,43 @@ const InputForm: React.FC<InputFormProps> = ({
               {isProcessing ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>분석 및 생성 중...</span>
+                  <span>주제 추천 생성 중...</span>
                 </>
               ) : (
                 <>
                   <Wand2 className="w-5 h-5" />
-                  <span>마법의 대본 생성하기</span>
+                  <span>마법의 대본 생성하기 (AI 주제 추천)</span>
                 </>
               )}
             </button>
-            {!isReady && (
+
+            {/* 또는 구분선 */}
+            {isScriptReady && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-700"></div>
+                <span className="text-gray-500 text-sm">또는</span>
+                <div className="flex-1 h-px bg-gray-700"></div>
+              </div>
+            )}
+
+            {/* 직접 입력하여 생성 버튼 */}
+            {isScriptReady && (
+              <button
+                onClick={() => onSubmit()}
+                disabled={!isFullyReady || isProcessing}
+                className={`w-full py-3 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-3 transition-all ${
+                  isFullyReady && !isProcessing
+                    ? 'bg-gray-700 text-white hover:bg-gray-600 cursor-pointer'
+                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                <span>직접 입력한 주제로 생성하기</span>
+              </button>
+            )}
+
+            {!isScriptReady && (
               <p className="text-center text-xs text-gray-600 mt-3">
-                * 대본 내용과 주제를 충분히 입력해주세요.
+                * 대본 내용을 충분히 입력해주세요.
               </p>
             )}
           </div>
