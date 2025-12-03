@@ -3,9 +3,15 @@ import { ViralAnalysis, GeneratedResult } from "../types";
 
 // Helper to ensure API key exists
 const getClient = (apiKey: string) => {
-  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY' || apiKey.trim() === '') {
     throw new Error("API 키가 없습니다. 우측 상단에서 API 키를 입력해주세요.");
   }
+  
+  // API 키 형식 간단 검증
+  if (!apiKey.startsWith('AIza')) {
+    throw new Error("올바르지 않은 API 키 형식입니다. Gemini API 키는 'AIza'로 시작해야 합니다.");
+  }
+  
   return new GoogleGenerativeAI(apiKey);
 };
 
@@ -58,16 +64,33 @@ export const generateTopicSuggestions = async (
     return [];
   } catch (error: any) {
     console.error('API Error:', error);
-    if (error.message?.includes('quota') || error.message?.includes('exceeded')) {
+    
+    // 구체적인 에러 메시지 처리
+    const errorMessage = error?.message || '';
+    const errorDetails = JSON.stringify(error, null, 2);
+    console.error('Error details:', errorDetails);
+    
+    if (errorMessage.includes('quota') || errorMessage.includes('exceeded')) {
       throw new Error('API 사용량이 초과되었습니다. 잠시 후 다시 시도하거나 다른 API 키를 사용해주세요.');
     }
-    if (error.message?.includes('not found') || error.message?.includes('NOT_FOUND')) {
-      throw new Error('모델을 찾을 수 없습니다. API 키가 Gemini API에 액세스할 수 있는지 확인해주세요.');
+    
+    if (errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('invalid API key')) {
+      throw new Error('유효하지 않은 API 키입니다. Google AI Studio(https://aistudio.google.com/app/apikey)에서 발급받은 키를 확인해주세요.');
     }
-    if (error.message?.includes('API_KEY')) {
-      throw new Error('유효하지 않은 API 키입니다. Google AI Studio에서 발급받은 키를 확인해주세요.');
+    
+    if (errorMessage.includes('not found') || errorMessage.includes('NOT_FOUND')) {
+      throw new Error('Gemini API에 액세스할 수 없습니다. API 키가 올바른지, Gemini API가 활성화되어 있는지 확인해주세요.');
     }
-    throw new Error(error.message || '주제 추천 생성 중 오류가 발생했습니다.');
+    
+    if (error?.status === 403) {
+      throw new Error('API 액세스가 거부되었습니다. Google Cloud Console에서 Gemini API를 활성화하고 결제를 설정해주세요.');
+    }
+    
+    if (error?.status === 429) {
+      throw new Error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+    }
+    
+    throw new Error(`오류 발생: ${errorMessage || '주제 추천 생성 중 알 수 없는 오류가 발생했습니다.'}`);
   }
 };
 
@@ -160,22 +183,34 @@ export const transformScript = async (
     console.error('API Error:', error);
     
     // 구체적인 에러 메시지 처리
-    if (error.message?.includes('quota') || error.message?.includes('exceeded')) {
+    const errorMessage = error?.message || '';
+    const errorDetails = JSON.stringify(error, null, 2);
+    console.error('Error details:', errorDetails);
+    
+    if (errorMessage.includes('quota') || errorMessage.includes('exceeded')) {
       throw new Error('API 사용량이 초과되었습니다. 잠시 후 다시 시도하거나 다른 API 키를 사용해주세요.');
     }
     
-    if (error.message?.includes('API_KEY') || error.message?.includes('API key')) {
-      throw new Error('API 키가 유효하지 않습니다. Google AI Studio에서 발급받은 올바른 키를 입력해주세요.');
+    if (errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('invalid API key') || errorMessage.includes('API_KEY')) {
+      throw new Error('유효하지 않은 API 키입니다. Google AI Studio(https://aistudio.google.com/app/apikey)에서 발급받은 키를 확인해주세요.');
     }
     
-    if (error.message?.includes('billing')) {
-      throw new Error('API 키에 결제 정보가 설정되지 않았습니다. Google AI Studio에서 결제를 활성화해주세요.');
+    if (errorMessage.includes('billing')) {
+      throw new Error('결제 정보가 설정되지 않았습니다. Google Cloud Console에서 결제를 활성화해주세요.');
     }
     
-    if (error.message?.includes('not found') || error.message?.includes('NOT_FOUND')) {
-      throw new Error('모델을 찾을 수 없습니다. API 키가 Gemini API에 액세스할 수 있는지 확인해주세요.');
+    if (errorMessage.includes('not found') || errorMessage.includes('NOT_FOUND')) {
+      throw new Error('Gemini API에 액세스할 수 없습니다. API 키가 올바른지, Gemini API가 활성화되어 있는지 확인해주세요.');
     }
     
-    throw new Error(error.message || '대본 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
+    if (error?.status === 403) {
+      throw new Error('API 액세스가 거부되었습니다. Google Cloud Console에서 Gemini API를 활성화하고 결제를 설정해주세요.');
+    }
+    
+    if (error?.status === 429) {
+      throw new Error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+    }
+    
+    throw new Error(`오류 발생: ${errorMessage || '대본 생성 중 알 수 없는 오류가 발생했습니다.'}`);
   }
 };
