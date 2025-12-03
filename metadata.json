@@ -1,0 +1,5 @@
+{
+  "name": "ViralCopy - YouTube Script Transformer",
+  "description": "Analyze the structure of viral YouTube videos and apply their formula to your own new topics using Gemini AI.",
+  "requestFramePermissions": []
+}
