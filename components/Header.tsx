@@ -53,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ apiKey, setApiKey }) => {
 
             <div className="flex items-center gap-2 text-sm text-gray-400 bg-gray-900 px-3 py-1.5 rounded-full border border-gray-800">
               <Sparkles className="w-4 h-4 text-yellow-500" />
-              <span>Powered by Gemini Pro</span>
+              <span>Powered by Gemini</span>
             </div>
           </div>
         </div>

@@ -21,7 +21,9 @@ export const generateTopicSuggestions = async (
 ): Promise<string[]> => {
   try {
     const genAI = getClient(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-pro"
+    });
 
     const result = await model.generateContent(
       `다음 유튜브 영상 대본의 구조와 스타일을 분석하여, 
@@ -101,7 +103,9 @@ export const transformScript = async (
 ): Promise<GeneratedResult> => {
   try {
     const genAI = getClient(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-pro"
+    });
 
     // Step 1: Analyze the original script
     const analysisResult = await model.generateContent(
