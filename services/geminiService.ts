@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ViralAnalysis, GeneratedResult } from "../types";
 
 // Helper to ensure API key exists
@@ -6,48 +6,18 @@ const getClient = (apiKey: string) => {
   if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
     throw new Error("API 키가 없습니다. 우측 상단에서 API 키를 입력해주세요.");
   }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenerativeAI(apiKey);
 };
 
-const analysisSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    hookStrategy: {
-      type: Type.STRING,
-      description: "Analysis of how the video grabs attention in the first 10 seconds.",
-    },
-    pacing: {
-      type: Type.STRING,
-      description: "Description of the speed, editing rhythm, and information density.",
-    },
-    tone: {
-      type: Type.STRING,
-      description: "The emotional tone and delivery style (e.g., energetic, mysterious, educational).",
-    },
-    structureBreakdown: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "A step-by-step list of the script's structural flow (e.g., Intro -> Problem -> Twist -> Solution).",
-    },
-    keyKeywords: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "5 powerful keywords or phrases used to retain audience.",
-    },
-  },
-  required: ["hookStrategy", "pacing", "tone", "structureBreakdown", "keyKeywords"],
-};
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ViralAnalysis, GeneratedResult } from "../types";
 
-const topicSuggestionsSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    topics: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "5 recommended video topics based on the script structure",
-    },
-  },
-  required: ["topics"],
+// Helper to ensure API key exists
+const getClient = (apiKey: string) => {
+  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+    throw new Error("API 키가 없습니다. 우측 상단에서 API 키를 입력해주세요.");
+  }
+  return new GoogleGenerativeAI(apiKey);
 };
 
 export const generateTopicSuggestions = async (
@@ -55,10 +25,10 @@ export const generateTopicSuggestions = async (
   apiKey: string
 ): Promise<string[]> => {
   try {
-    const ai = getClient(apiKey);
-    const model = ai.models.get("gemini-1.5-pro-latest");
+    const genAI = getClient(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
-    const response = await model.generateContent(
+    const result = await model.generateContent(
       `다음 유튜브 영상 대본의 구조와 스타일을 분석하여, 
       이 구조를 활용하기 좋은 5가지 다른 주제를 추천해주세요.
       
@@ -73,20 +43,30 @@ export const generateTopicSuggestions = async (
       5. JSON 형식으로 응답: {"topics": ["주제1", "주제2", "주제3", "주제4", "주제5"]}`
     );
 
-    const resultText = response.text;
+    const response = await result.response;
+    const resultText = response.text();
+    
     if (!resultText) {
       throw new Error("주제 추천을 생성하지 못했습니다.");
     }
 
     // JSON 파싱 시도
     try {
-      const result = JSON.parse(resultText);
-      return result.topics || [];
+      const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return parsed.topics || [];
+      }
     } catch {
       // JSON 파싱 실패 시 텍스트에서 주제 추출
-      const lines = resultText.split('\n').filter(line => line.trim());
+      const lines = resultText.split('\n')
+        .filter(line => line.trim() && !line.includes('{') && !line.includes('}'))
+        .map(line => line.replace(/^[\d\-\*\.\)]+\s*/, '').replace(/^["']|["']$/g, '').trim())
+        .filter(line => line.length > 3 && line.length < 50);
       return lines.slice(0, 5);
     }
+    
+    return [];
   } catch (error: any) {
     console.error('API Error:', error);
     if (error.message?.includes('quota') || error.message?.includes('exceeded')) {
@@ -94,6 +74,9 @@ export const generateTopicSuggestions = async (
     }
     if (error.message?.includes('not found') || error.message?.includes('NOT_FOUND')) {
       throw new Error('모델을 찾을 수 없습니다. API 키가 Gemini API에 액세스할 수 있는지 확인해주세요.');
+    }
+    if (error.message?.includes('API_KEY')) {
+      throw new Error('유효하지 않은 API 키입니다. Google AI Studio에서 발급받은 키를 확인해주세요.');
     }
     throw new Error(error.message || '주제 추천 생성 중 오류가 발생했습니다.');
   }
@@ -105,11 +88,11 @@ export const transformScript = async (
   apiKey: string
 ): Promise<GeneratedResult> => {
   try {
-    const ai = getClient(apiKey);
-    const model = ai.models.get("gemini-1.5-pro-latest");
+    const genAI = getClient(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
     // Step 1: Analyze the original script
-    const analysisResponse = await model.generateContent(
+    const analysisResult = await model.generateContent(
       `You are a YouTube viral video expert. Analyze the following transcript of a successful video.
       Identify the core elements that made it successful (Hook, Structure, Pacing, Tone).
       
@@ -126,14 +109,21 @@ export const transformScript = async (
       }`
     );
 
-    const analysisJsonString = analysisResponse.text;
+    const analysisResponse = await analysisResult.response;
+    const analysisJsonString = analysisResponse.text();
+    
     if (!analysisJsonString) {
       throw new Error("대본 분석에 실패했습니다.");
     }
 
     let analysis: ViralAnalysis;
     try {
-      analysis = JSON.parse(analysisJsonString);
+      const jsonMatch = analysisJsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("JSON not found");
+      }
     } catch {
       // JSON 파싱 실패 시 기본값 사용
       analysis = {
@@ -146,7 +136,7 @@ export const transformScript = async (
     }
 
     // Step 2: Generate the new script based on the analysis
-    const generationResponse = await model.generateContent(
+    const generationResult = await model.generateContent(
       `Based on the following analysis of a viral video structure, write a NEW YouTube script for a completely different topic.
       
       TARGET TOPIC: ${newTopic}
@@ -166,7 +156,9 @@ export const transformScript = async (
       6. Write at least 1000 words.`
     );
 
-    const newScript = generationResponse.text;
+    const generationResponse = await generationResult.response;
+    const newScript = generationResponse.text();
+    
     if (!newScript) {
       throw new Error("새로운 대본 생성에 실패했습니다.");
     }
@@ -183,8 +175,8 @@ export const transformScript = async (
       throw new Error('API 사용량이 초과되었습니다. 잠시 후 다시 시도하거나 다른 API 키를 사용해주세요.');
     }
     
-    if (error.message?.includes('API key')) {
-      throw new Error('API 키가 유효하지 않습니다. 올바른 Gemini API 키를 입력해주세요.');
+    if (error.message?.includes('API_KEY') || error.message?.includes('API key')) {
+      throw new Error('API 키가 유효하지 않습니다. Google AI Studio에서 발급받은 올바른 키를 입력해주세요.');
     }
     
     if (error.message?.includes('billing')) {
