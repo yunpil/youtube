@@ -21,8 +21,10 @@ export const generateTopicSuggestions = async (
 ): Promise<string[]> => {
   try {
     const genAI = getClient(apiKey);
-    // 모델 이름만 지정 (추가 설정 없이)
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    // gemini-1.5-flash 모델 사용 (최신 안정 버전)
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+    });
 
     const prompt = `다음 유튜브 영상 대본의 구조와 스타일을 분석하여, 
 이 구조를 활용하기 좋은 5가지 다른 주제를 추천해주세요.
@@ -107,7 +109,9 @@ export const transformScript = async (
 ): Promise<GeneratedResult> => {
   try {
     const genAI = getClient(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+    });
 
     // Step 1: Analyze the original script
     const analysisPrompt = `You are a YouTube viral video expert. Analyze the following transcript of a successful video.
