@@ -9,17 +9,6 @@ const getClient = (apiKey: string) => {
   return new GoogleGenerativeAI(apiKey);
 };
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { ViralAnalysis, GeneratedResult } from "../types";
-
-// Helper to ensure API key exists
-const getClient = (apiKey: string) => {
-  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
-    throw new Error("API 키가 없습니다. 우측 상단에서 API 키를 입력해주세요.");
-  }
-  return new GoogleGenerativeAI(apiKey);
-};
-
 export const generateTopicSuggestions = async (
   originalScript: string,
   apiKey: string
